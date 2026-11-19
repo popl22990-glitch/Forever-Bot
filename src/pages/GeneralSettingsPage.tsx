@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { testConnection } from '../lib/firebase';
+import { parseApiJson } from '../lib/apiClient';
 
 interface HealthStatus {
   ok: boolean;
@@ -59,7 +60,7 @@ export const GeneralSettingsPage: React.FC = () => {
     setCheckingHealth(true);
     try {
       const [apiRes, firestoreOk] = await Promise.all([
-        fetch('/api/health').then((r) => r.json() as Promise<HealthStatus>),
+        fetch('/api/health').then((r) => parseApiJson<HealthStatus>(r)),
         testConnection(),
       ]);
       setHealth(apiRes);

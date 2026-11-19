@@ -94,6 +94,14 @@ export function createApp(hooks: AppRuntimeHooks = {}) {
   const hasActiveWsClient = hooks.hasActiveWsClient ?? (() => false);
   const getWsClientCount = hooks.getWsClientCount ?? (() => 0);
 
+  // Handle serverless runtimes (e.g. Vercel) that pre-parse req.body
+  app.use((req, _res, next) => {
+    if (req.body !== undefined && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+      (req as express.Request & { _body?: boolean })._body = true;
+    }
+    next();
+  });
+
   // Capture raw body for Viber HMAC signature verification
   app.use(
     express.json({

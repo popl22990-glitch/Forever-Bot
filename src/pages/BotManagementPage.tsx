@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { authFetch } from '../lib/apiClient';
+import { authFetch, parseApiJson } from '../lib/apiClient';
 import type { BotPermissions, BotRecord, Platform, SyncMode } from '../types';
 
 const DEFAULT_PERMISSIONS: BotPermissions = {
@@ -124,7 +124,7 @@ export const BotManagementPage: React.FC = () => {
           webhookBaseUrl: settings.defaultWebhookBaseUrl || window.location.origin,
         }),
       });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok: boolean;
         encryptedToken?: string;
         tokenMasked?: string;
@@ -137,7 +137,7 @@ export const BotManagementPage: React.FC = () => {
         lastSyncAt?: string;
         lastError?: string;
         error?: string;
-      };
+      }>(res);
 
       if (!res.ok || !json.ok) {
         throw new Error(json.error || 'Bot API rejected the credentials.');
@@ -199,14 +199,14 @@ export const BotManagementPage: React.FC = () => {
           webhookBaseUrl: settings.defaultWebhookBaseUrl || window.location.origin,
         }),
       });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok: boolean;
         lastSyncAt?: string;
         webhookStatus?: BotRecord['webhookStatus'];
         webhookUrl?: string;
         botUsername?: string;
         error?: string;
-      };
+      }>(res);
 
       if (!res.ok || !json.ok) {
         await upsertBot(

@@ -10,7 +10,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { authFetch } from '../lib/apiClient';
+import { authFetch, parseApiJson } from '../lib/apiClient';
 import type { BotPermissions, BotRecord, Platform, SyncMode } from '../types';
 
 export const ChannelSettingsPage: React.FC = () => {
@@ -68,7 +68,7 @@ export const ChannelSettingsPage: React.FC = () => {
           webhookBaseUrl: settings.defaultWebhookBaseUrl || window.location.origin,
         }),
       });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok: boolean;
         encryptedToken?: string;
         tokenMasked?: string;
@@ -80,7 +80,7 @@ export const ChannelSettingsPage: React.FC = () => {
         lastSyncAt?: string;
         lastError?: string;
         error?: string;
-      };
+      }>(res);
       if (!res.ok || !json.ok) {
         await upsertBot(
           { ...activeBot, status: 'error', lastError: json.error || 'Verification failed' },
@@ -139,12 +139,12 @@ export const ChannelSettingsPage: React.FC = () => {
           }),
         }
       );
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok: boolean;
         webhookStatus?: BotRecord['webhookStatus'];
         webhookUrl?: string;
         error?: string;
-      };
+      }>(res);
       if (!res.ok || !json.ok) {
         await upsertBot(
           {
@@ -229,7 +229,7 @@ export const ChannelSettingsPage: React.FC = () => {
           webhookBaseUrl: settings.defaultWebhookBaseUrl || window.location.origin,
         }),
       });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok: boolean;
         encryptedToken?: string;
         tokenMasked?: string;
@@ -242,7 +242,7 @@ export const ChannelSettingsPage: React.FC = () => {
         lastSyncAt?: string;
         lastError?: string;
         error?: string;
-      };
+      }>(res);
       if (!res.ok || !json.ok) {
         throw new Error(json.error || 'Channel token rejected by platform API.');
       }

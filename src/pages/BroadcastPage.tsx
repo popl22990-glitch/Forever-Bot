@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { authFetch } from '../lib/apiClient';
+import { authFetch, parseApiJson } from '../lib/apiClient';
 import type { BroadcastRecord, MessageType } from '../types';
 
 export const BroadcastPage: React.FC = () => {
@@ -89,7 +89,7 @@ export const BroadcastPage: React.FC = () => {
       const fd = new FormData();
       fd.append('file', file);
       const res = await authFetch('/api/upload', { method: 'POST', body: fd });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok?: boolean;
         url?: string;
         localPath?: string;
@@ -97,7 +97,7 @@ export const BroadcastPage: React.FC = () => {
         fileName?: string;
         fileSize?: number;
         error?: string;
-      };
+      }>(res);
       if (!res.ok || !json.url) throw new Error(json.error || 'Upload failed');
       setMediaUrl(json.url);
       setLocalFilePath(json.localPath || '');
@@ -168,7 +168,7 @@ export const BroadcastPage: React.FC = () => {
           rateLimitMs: settings.broadcastRateLimitMs,
         }),
       });
-      const json = (await res.json()) as { ok: boolean; error?: string };
+      const json = await parseApiJson<{ ok: boolean; error?: string }>(res);
       if (!res.ok || !json.ok) {
         throw new Error(json.error || 'Broadcast failed to start');
       }

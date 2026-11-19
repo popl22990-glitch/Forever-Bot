@@ -11,7 +11,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { authFetch } from '../lib/apiClient';
+import { authFetch, parseApiJson } from '../lib/apiClient';
 import type {
   FlowEdge,
   FlowNode,
@@ -236,12 +236,12 @@ export const FlowBuilderPage: React.FC = () => {
           liveSend: testLive && Boolean(targetCustomer),
         }),
       });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok: boolean;
         executed?: boolean;
         steps?: Array<{ nodeId: string; label: string; status: string; detail?: string }>;
         error?: string;
-      };
+      }>(res);
       if (!res.ok || !json.ok) {
         throw new Error(json.error || 'Flow test failed');
       }

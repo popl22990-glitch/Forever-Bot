@@ -14,7 +14,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { authFetch } from '../lib/apiClient';
+import { authFetch, parseApiJson } from '../lib/apiClient';
 import type { MessageRecord, MessageType, Platform } from '../types';
 
 interface InboxPageProps {
@@ -157,7 +157,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ initialCustomerId }) => {
         method: 'POST',
         body: formData,
       });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok?: boolean;
         url?: string;
         localPath?: string;
@@ -165,7 +165,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ initialCustomerId }) => {
         fileName?: string;
         fileSize?: number;
         error?: string;
-      };
+      }>(res);
       if (!res.ok || !json.url) {
         throw new Error(json.error || 'Upload failed');
       }
@@ -225,11 +225,11 @@ export const InboxPage: React.FC<InboxPageProps> = ({ initialCustomerId }) => {
           fileSize: pendingAttachment?.fileSize,
         }),
       });
-      const json = (await res.json()) as {
+      const json = await parseApiJson<{
         ok: boolean;
         platformMessageId?: string;
         error?: string;
-      };
+      }>(res);
 
       const msgId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const record: MessageRecord = {
