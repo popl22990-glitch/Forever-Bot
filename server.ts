@@ -4,7 +4,7 @@ import http from 'http';
 import path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
-import { verifyBearerToken } from './src/server/firebaseAuthMiddleware.ts';
+import { verifyBearerToken } from './src/server/firebaseAdminVerifier.ts';
 import { runtimeVault } from './src/server/cryptoVault.ts';
 import { fetchTelegramUpdates } from './src/server/botApis.ts';
 import { createApp } from './src/server/createApp.ts';
@@ -46,6 +46,7 @@ async function startServer() {
     broadcastToClients,
     hasActiveWsClient,
     getWsClientCount: () => authenticatedClients.size,
+    verifyToken: verifyBearerToken,
   });
 
   const server = http.createServer(app);

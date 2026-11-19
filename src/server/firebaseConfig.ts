@@ -12,14 +12,17 @@ let cachedConfig: ServerFirebaseConfig | null = null;
 export function getServerFirebaseConfig(): ServerFirebaseConfig {
   if (cachedConfig) return cachedConfig;
 
-  const candidates = [
+  const candidates: string[] = [
     path.resolve(process.cwd(), 'firebase-applet-config.json'),
-    new URL('../../firebase-applet-config.json', import.meta.url),
   ];
+  if (typeof __dirname !== 'undefined') {
+    candidates.push(path.resolve(__dirname, '../firebase-applet-config.json'));
+    candidates.push(path.resolve(__dirname, '../../firebase-applet-config.json'));
+  }
 
   for (const target of candidates) {
     try {
-      if (fs.existsSync(target)) {
+      if (target && fs.existsSync(target)) {
         const parsed = JSON.parse(fs.readFileSync(target, 'utf8')) as Partial<ServerFirebaseConfig>;
         if (parsed.projectId && parsed.apiKey && parsed.firestoreDatabaseId) {
           cachedConfig = {

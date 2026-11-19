@@ -5,8 +5,9 @@ import path from 'path';
 import crypto from 'crypto';
 import multer from 'multer';
 import {
-  requireAuth,
+  createRequireAuth,
   type AuthRequest,
+  type TokenVerifier,
 } from './firebaseAuthMiddleware.ts';
 import {
   buildCustomerId,
@@ -41,7 +42,7 @@ import {
 import type { BotRecord, FlowRecord, MessageType } from '../types.ts';
 
 export const IS_SERVERLESS = Boolean(
-  process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME
+  process.env.VERCEL || process.env.VERCEL_ENV || process.env.AWS_LAMBDA_FUNCTION_NAME
 );
 
 const PORT = Number(process.env.PORT || 3000);
@@ -84,10 +85,12 @@ export interface AppRuntimeHooks {
   broadcastToClients?: (ownerUid: string, event: Record<string, unknown>) => void;
   hasActiveWsClient?: (ownerUid: string) => boolean;
   getWsClientCount?: () => number;
+  verifyToken?: TokenVerifier;
 }
 
 export function createApp(hooks: AppRuntimeHooks = {}) {
   const app = express();
+  const requireAuth = createRequireAuth(hooks.verifyToken);
 
   const broadcastToClients = hooks.broadcastToClients ?? (() => {});
   const hasActiveWsClient = hooks.hasActiveWsClient ?? (() => false);
@@ -95,8 +98,13 @@ export function createApp(hooks: AppRuntimeHooks = {}) {
 
   // Handle serverless runtimes (e.g. Vercel) that pre-parse req.body
   app.use((req, _res, next) => {
-    if (req.body !== undefined && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-      (req as express.Request & { _body?: boolean })._body = true;
+    try {
+      const preParsed = req.body;
+      if (preParsed !== undefined && typeof preParsed === 'object' && !Buffer.isBuffer(preParsed)) {
+        (req as express.Request & { _body?: boolean })._body = true;
+      }
+    } catch {
+      // Ignore if serverless runtime throws on invalid/multipart req.body getter
     }
     next();
   });
@@ -665,7 +673,7 @@ export function createApp(hooks: AppRuntimeHooks = {}) {
   app.post('/api/bots/verify', requireAuth, async (req: AuthRequest, res) => {
     try {
       const { botId, name, platform, token, encryptedToken, syncMode, webhookBaseUrl } =
-        req.body as {
+        (req.body || {}) as {
           botId: string;
           name: string;
           platform: 'viber' | 'telegram';
@@ -1365,6 +1373,25 @@ export function createApp(hooks: AppRuntimeHooks = {}) {
       void handleViberBody();
     }
   });
+
+  // Express JSON error middleware so unhandled route or body-parser errors always return JSON
+  app.use(
+    (
+      err: unknown,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      const message = err instanceof Error ? err.message : 'Internal server error';
+      const status =
+        typeof (err as { status?: number })?.status === 'number'
+          ? (err as { status: number }).status
+          : 500;
+      if (!res.headersSent) {
+        res.status(status).json({ ok: false, error: message });
+      }
+    }
+  );
 
   return { app, processTelegramUpdate };
 }

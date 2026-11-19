@@ -5,7 +5,9 @@ import path from 'path';
 import type { BotRecord, FlowRecord, MessageRecord, CustomerRecord, ErrorLogRecord } from '../types.ts';
 import { getServerFirebaseConfig } from './firebaseConfig.ts';
 
-const IS_SERVERLESS = Boolean(process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const IS_SERVERLESS = Boolean(
+  process.env.VERCEL || process.env.VERCEL_ENV || process.env.AWS_LAMBDA_FUNCTION_NAME
+);
 const DATA_DIR = IS_SERVERLESS
   ? path.join(os.tmpdir(), 'forever-bot-data')
   : path.resolve(process.cwd(), '.data');
