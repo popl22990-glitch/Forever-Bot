@@ -29,7 +29,7 @@ import {
   handleFirestoreError,
   OperationType,
 } from '../lib/firebase';
-import { authFetch } from '../lib/apiClient';
+import { authFetch, parseApiJson } from '../lib/apiClient';
 import { audioNotifier } from '../lib/audioNotifier';
 import type {
   AppSettingsRecord,
@@ -447,10 +447,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           body: JSON.stringify({ bots: botsRef.current, flows: flowsRef.current }),
         });
         if (!res.ok) return;
-        const data = (await res.json()) as {
+        const data = await parseApiJson<{
           ok: boolean;
           pendingEvents?: PendingSyncEvent[];
-        };
+        }>(res);
         if (data.pendingEvents && data.pendingEvents.length > 0) {
           const ackIds: string[] = [];
           for (const evt of data.pendingEvents) {
@@ -654,10 +654,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }),
         });
         if (res.ok) {
-          const data = (await res.json()) as {
+          const data = await parseApiJson<{
             ok?: boolean;
             offsets?: Record<string, number>;
-          };
+          }>(res);
           if (data.offsets) {
             telegramOffsetsRef.current = {
               ...telegramOffsetsRef.current,

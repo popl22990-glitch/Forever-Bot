@@ -1,20 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-import { initializeApp, getApps } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import type { Request, Response, NextFunction } from 'express';
-
-const firebaseConfig = JSON.parse(
-  fs.readFileSync(path.resolve(process.cwd(), 'firebase-applet-config.json'), 'utf8')
-) as { projectId: string };
-
-if (!getApps().length) {
-  initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
-}
-
-export const adminAuth = getAuth();
+import { getServerFirebaseConfig } from './firebaseConfig.ts';
 
 export const WORKSPACE_OWNER_UID = 'forever_bot_workspace';
 
@@ -28,7 +13,15 @@ export interface AuthRequest extends Request {
 }
 
 export async function verifyBearerToken(token: string): Promise<WorkspaceIdentity> {
-  const decoded = await adminAuth.verifyIdToken(token);
+  const [{ initializeApp, getApps }, { getAuth }] = await Promise.all([
+    import('firebase-admin/app'),
+    import('firebase-admin/auth'),
+  ]);
+  if (!getApps().length) {
+    const firebaseConfig = getServerFirebaseConfig();
+    initializeApp({ projectId: firebaseConfig.projectId });
+  }
+  const decoded = await getAuth().verifyIdToken(token);
   if (!decoded.email_verified) {
     throw new Error('Administrator email must be verified.');
   }

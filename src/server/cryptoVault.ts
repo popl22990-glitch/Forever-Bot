@@ -3,10 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type { BotRecord, FlowRecord, MessageRecord, CustomerRecord, ErrorLogRecord } from '../types.ts';
-
-const firebaseConfig = JSON.parse(
-  fs.readFileSync(path.resolve(process.cwd(), 'firebase-applet-config.json'), 'utf8')
-) as { apiKey: string; projectId: string };
+import { getServerFirebaseConfig } from './firebaseConfig.ts';
 
 const IS_SERVERLESS = Boolean(process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const DATA_DIR = IS_SERVERLESS
@@ -15,6 +12,7 @@ const DATA_DIR = IS_SERVERLESS
 const VAULT_FILE = path.join(DATA_DIR, 'runtime-vault.json');
 
 function getEncryptionKey(): Buffer {
+  const firebaseConfig = getServerFirebaseConfig();
   const secret =
     process.env.TOKEN_ENCRYPTION_SECRET ||
     process.env.GEMINI_API_KEY ||

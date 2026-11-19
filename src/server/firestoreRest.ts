@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import type {
   BotRecord,
   ErrorLogRecord,
@@ -7,16 +5,9 @@ import type {
   MessageRecord,
   Platform,
 } from '../types.ts';
+import { getServerFirebaseConfig } from './firebaseConfig.ts';
 
-interface FirebaseConfigJson {
-  projectId: string;
-  apiKey: string;
-  firestoreDatabaseId: string;
-}
-
-const firebaseConfig = JSON.parse(
-  fs.readFileSync(path.resolve(process.cwd(), 'firebase-applet-config.json'), 'utf8')
-) as FirebaseConfigJson;
+const firebaseConfig = getServerFirebaseConfig();
 
 const BASE_DOC_ROOT = `projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId}/documents`;
 const REST_BASE = `https://firestore.googleapis.com/v1/${BASE_DOC_ROOT}`;
