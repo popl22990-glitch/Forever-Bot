@@ -1,0 +1,6 @@
+{
+  "name": "FOREVER BOT",
+  "description": "Professional Viber & Telegram Customer Service SaaS Platform with Unified Inbox, Broadcast Engine, Visual Flow Builder, and Real-Time Audio Alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,208 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized administrator account profile for FOREVER BOT.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 254 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["super_admin", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt", "updatedAt"]
+    },
+    "Bot": {
+      "title": "Bot",
+      "description": "Connected Viber or Telegram bot configuration with encrypted server-side token.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "platform": { "type": "string", "enum": ["viber", "telegram"] },
+        "status": { "type": "string", "enum": ["connected", "disconnected", "error", "awaiting_config"] },
+        "encryptedToken": { "type": "string", "maxLength": 2048 },
+        "tokenMasked": { "type": "string", "maxLength": 64 },
+        "botUsername": { "type": "string", "maxLength": 128 },
+        "botPlatformId": { "type": "string", "maxLength": 128 },
+        "webhookUrl": { "type": "string", "maxLength": 512 },
+        "webhookStatus": { "type": "string", "enum": ["active", "pending", "error", "polling", "unset"] },
+        "syncMode": { "type": "string", "enum": ["webhook", "polling"] },
+        "lastSyncAt": { "type": "string", "maxLength": 64 },
+        "lastError": { "type": "string", "maxLength": 1000 },
+        "permissions": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "name", "platform", "status", "createdAt", "updatedAt"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Real Viber or Telegram customer record linked to a specific bot.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "botId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "platform": { "type": "string", "enum": ["viber", "telegram"] },
+        "platformUserId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "platformName": { "type": "string", "maxLength": 160 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "avatarUrl": { "type": "string", "maxLength": 1024 },
+        "username": { "type": "string", "maxLength": 128 },
+        "isSubscribed": { "type": "boolean" },
+        "lastMessageText": { "type": "string", "maxLength": 2000 },
+        "lastMessageAt": { "type": "string", "maxLength": 64 },
+        "unreadCount": { "type": "integer" },
+        "firstContactAt": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "botId", "platform", "platformUserId", "displayName", "isSubscribed", "unreadCount", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Permanent incoming or outgoing message exchanged via Viber or Telegram.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "botId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "platform": { "type": "string", "enum": ["viber", "telegram"] },
+        "platformUserId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "platformMessageId": { "type": "string", "maxLength": 256 },
+        "direction": { "type": "string", "enum": ["incoming", "outgoing"] },
+        "senderType": { "type": "string", "enum": ["customer", "admin", "flow", "broadcast"] },
+        "messageType": { "type": "string", "enum": ["text", "image", "audio", "file"] },
+        "text": { "type": "string", "maxLength": 4096 },
+        "mediaUrl": { "type": "string", "maxLength": 1024 },
+        "fileName": { "type": "string", "maxLength": 256 },
+        "status": { "type": "string", "enum": ["received", "sent", "delivered", "failed"] },
+        "errorMessage": { "type": "string", "maxLength": 1000 },
+        "timestampIso": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "customerId", "botId", "platform", "platformUserId", "direction", "senderType", "messageType", "status", "createdAt"]
+    },
+    "Broadcast": {
+      "title": "Broadcast",
+      "description": "Broadcast campaign history and delivery counters.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "botId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "platform": { "type": "string", "enum": ["viber", "telegram", "multi"] },
+        "messageType": { "type": "string", "enum": ["text", "image", "audio", "file"] },
+        "text": { "type": "string", "maxLength": 4096 },
+        "mediaUrl": { "type": "string", "maxLength": 1024 },
+        "dedupeKey": { "type": "string", "maxLength": 128 },
+        "totalTargets": { "type": "integer" },
+        "successCount": { "type": "integer" },
+        "failedCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["queued", "running", "completed", "cancelled", "failed"] },
+        "startedAt": { "type": "string", "maxLength": 64 },
+        "completedAt": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "title", "botId", "platform", "messageType", "totalTargets", "successCount", "failedCount", "status", "createdAt", "updatedAt"]
+    },
+    "Flow": {
+      "title": "Flow",
+      "description": "Automation workflow graph with nodes and connections.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "botId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "platform": { "type": "string", "enum": ["all", "viber", "telegram"] },
+        "isActive": { "type": "boolean" },
+        "triggerKeywords": { "type": "array" },
+        "nodes": { "type": "array" },
+        "edges": { "type": "array" },
+        "executionCount": { "type": "integer" },
+        "lastExecutedAt": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "name", "botId", "platform", "isActive", "nodes", "edges", "executionCount", "createdAt", "updatedAt"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Notification and general administrator settings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "soundEnabled": { "type": "boolean" },
+        "volume": { "type": "integer" },
+        "viberTone": { "type": "string", "maxLength": 64 },
+        "telegramTone": { "type": "string", "maxLength": 64 },
+        "browserNotificationsEnabled": { "type": "boolean" },
+        "platformName": { "type": "string", "maxLength": 100 },
+        "defaultWebhookBaseUrl": { "type": "string", "maxLength": 512 },
+        "broadcastRateLimitMs": { "type": "integer" },
+        "broadcastRequireConfirm": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "updatedAt"]
+    },
+    "ErrorLog": {
+      "title": "ErrorLog",
+      "description": "Structured server and integration error logs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "source": { "type": "string", "enum": ["viber_api", "telegram_api", "webhook", "broadcast", "flow", "database", "system"] },
+        "botId": { "type": "string", "maxLength": 128 },
+        "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+        "message": { "type": "string", "maxLength": 512 },
+        "details": { "type": "string", "maxLength": 2048 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "source", "severity", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Authorized FOREVER BOT administrators."
+    },
+    "/bots/{botId}": {
+      "schema": { "$ref": "#/entities/Bot" },
+      "description": "Viber and Telegram bot connections."
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Real Viber and Telegram customer directory."
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Permanent message log across all connected bots."
+    },
+    "/broadcasts/{broadcastId}": {
+      "schema": { "$ref": "#/entities/Broadcast" },
+      "description": "Broadcast campaigns and delivery reports."
+    },
+    "/flows/{flowId}": {
+      "schema": { "$ref": "#/entities/Flow" },
+      "description": "Visual automation flows for Viber and Telegram bots."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Audio notification and general administrator preferences."
+    },
+    "/error_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ErrorLog" },
+      "description": "API, webhook, and system error logs."
+    }
+  }
+}

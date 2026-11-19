@@ -1,0 +1,405 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com';
+    }
+
+    function currentOwnerId() {
+      return isSignedIn() ? request.auth.uid : 'forever_bot_workspace';
+    }
+
+    function isWorkspaceOwner(data) {
+      return isBootstrappedAdmin()
+        || (isSignedIn() && data.ownerUid == request.auth.uid)
+        || data.ownerUid == 'forever_bot_workspace';
+    }
+
+    // Validation Blueprints
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.role in ['super_admin', 'admin']
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBot(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'name', 'platform', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'platform', 'status', 'encryptedToken', 'tokenMasked',
+          'botUsername', 'botPlatformId', 'webhookUrl', 'webhookStatus', 'syncMode',
+          'lastSyncAt', 'lastError', 'permissions', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.platform in ['viber', 'telegram']
+        && data.status in ['connected', 'disconnected', 'error', 'awaiting_config']
+        && (!('encryptedToken' in data) || (data.encryptedToken is string && data.encryptedToken.size() <= 2048))
+        && (!('tokenMasked' in data) || (data.tokenMasked is string && data.tokenMasked.size() <= 64))
+        && (!('botUsername' in data) || (data.botUsername is string && data.botUsername.size() <= 128))
+        && (!('botPlatformId' in data) || (data.botPlatformId is string && data.botPlatformId.size() <= 128))
+        && (!('webhookUrl' in data) || (data.webhookUrl is string && data.webhookUrl.size() <= 512))
+        && (!('webhookStatus' in data) || (data.webhookStatus in ['active', 'pending', 'error', 'polling', 'unset']))
+        && (!('syncMode' in data) || (data.syncMode in ['webhook', 'polling']))
+        && (!('lastSyncAt' in data) || (data.lastSyncAt is string && data.lastSyncAt.size() <= 64))
+        && (!('lastError' in data) || (data.lastError is string && data.lastError.size() <= 1000))
+        && (!('permissions' in data) || data.permissions is map)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'botId', 'platform', 'platformUserId', 'displayName', 'isSubscribed', 'unreadCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'botId', 'platform', 'platformUserId', 'platformName',
+          'displayName', 'avatarUrl', 'username', 'isSubscribed', 'lastMessageText',
+          'lastMessageAt', 'unreadCount', 'firstContactAt', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && isValidId(data.botId)
+        && data.platform in ['viber', 'telegram']
+        && data.platformUserId is string && data.platformUserId.size() >= 1 && data.platformUserId.size() <= 256
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 160
+        && data.isSubscribed is bool
+        && data.unreadCount is int && data.unreadCount >= 0 && data.unreadCount <= 100000
+        && (!('platformName' in data) || (data.platformName is string && data.platformName.size() <= 160))
+        && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 1024))
+        && (!('username' in data) || (data.username is string && data.username.size() <= 128))
+        && (!('lastMessageText' in data) || (data.lastMessageText is string && data.lastMessageText.size() <= 2000))
+        && (!('lastMessageAt' in data) || (data.lastMessageAt is string && data.lastMessageAt.size() <= 64))
+        && (!('firstContactAt' in data) || (data.firstContactAt is string && data.firstContactAt.size() <= 64))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'customerId', 'botId', 'platform', 'platformUserId', 'direction', 'senderType', 'messageType', 'status', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'customerId', 'botId', 'platform', 'platformUserId',
+          'platformMessageId', 'direction', 'senderType', 'messageType',
+          'text', 'mediaUrl', 'fileName', 'status', 'errorMessage', 'timestampIso', 'createdAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && isValidId(data.customerId)
+        && isValidId(data.botId)
+        && data.platform in ['viber', 'telegram']
+        && data.platformUserId is string && data.platformUserId.size() >= 1 && data.platformUserId.size() <= 256
+        && data.direction in ['incoming', 'outgoing']
+        && data.senderType in ['customer', 'admin', 'flow', 'broadcast']
+        && data.messageType in ['text', 'image', 'audio', 'file']
+        && data.status in ['received', 'sent', 'delivered', 'failed']
+        && (!('platformMessageId' in data) || (data.platformMessageId is string && data.platformMessageId.size() <= 256))
+        && (!('text' in data) || (data.text is string && data.text.size() <= 4096))
+        && (!('mediaUrl' in data) || (data.mediaUrl is string && data.mediaUrl.size() <= 1024))
+        && (!('fileName' in data) || (data.fileName is string && data.fileName.size() <= 256))
+        && (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 1000))
+        && (!('timestampIso' in data) || (data.timestampIso is string && data.timestampIso.size() <= 64))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidBroadcast(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'title', 'botId', 'platform', 'messageType', 'totalTargets', 'successCount', 'failedCount', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'title', 'botId', 'platform', 'messageType', 'text',
+          'mediaUrl', 'dedupeKey', 'totalTargets', 'successCount', 'failedCount',
+          'status', 'startedAt', 'completedAt', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.botId is string && data.botId.size() >= 1 && data.botId.size() <= 128
+        && data.platform in ['viber', 'telegram', 'multi']
+        && data.messageType in ['text', 'image', 'audio', 'file']
+        && data.totalTargets is int && data.totalTargets >= 0 && data.totalTargets <= 100000
+        && data.successCount is int && data.successCount >= 0 && data.successCount <= 100000
+        && data.failedCount is int && data.failedCount >= 0 && data.failedCount <= 100000
+        && data.status in ['queued', 'running', 'completed', 'cancelled', 'failed']
+        && (!('text' in data) || (data.text is string && data.text.size() <= 4096))
+        && (!('mediaUrl' in data) || (data.mediaUrl is string && data.mediaUrl.size() <= 1024))
+        && (!('dedupeKey' in data) || (data.dedupeKey is string && data.dedupeKey.size() <= 128))
+        && (!('startedAt' in data) || (data.startedAt is string && data.startedAt.size() <= 64))
+        && (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 64))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFlow(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'name', 'botId', 'platform', 'isActive', 'nodes', 'edges', 'executionCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'botId', 'platform', 'isActive',
+          'triggerKeywords', 'nodes', 'edges', 'executionCount', 'lastExecutedAt',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.botId is string && data.botId.size() >= 1 && data.botId.size() <= 128
+        && data.platform in ['all', 'viber', 'telegram']
+        && data.isActive is bool
+        && (!('triggerKeywords' in data) || (data.triggerKeywords is list && data.triggerKeywords.size() <= 20 && (data.triggerKeywords.size() == 0 || data.triggerKeywords[0] is string)))
+        && data.nodes is list && data.nodes.size() <= 50 && (data.nodes.size() == 0 || data.nodes[0] is map)
+        && data.edges is list && data.edges.size() <= 100 && (data.edges.size() == 0 || data.edges[0] is map)
+        && data.executionCount is int && data.executionCount >= 0 && data.executionCount <= 10000000
+        && (!('lastExecutedAt' in data) || (data.lastExecutedAt is string && data.lastExecutedAt.size() <= 64))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'soundEnabled', 'volume', 'viberTone', 'telegramTone',
+          'browserNotificationsEnabled', 'platformName', 'defaultWebhookBaseUrl',
+          'broadcastRateLimitMs', 'broadcastRequireConfirm', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && (!('soundEnabled' in data) || data.soundEnabled is bool)
+        && (!('volume' in data) || (data.volume is int && data.volume >= 0 && data.volume <= 100))
+        && (!('viberTone' in data) || (data.viberTone is string && data.viberTone.size() <= 64))
+        && (!('telegramTone' in data) || (data.telegramTone is string && data.telegramTone.size() <= 64))
+        && (!('browserNotificationsEnabled' in data) || data.browserNotificationsEnabled is bool)
+        && (!('platformName' in data) || (data.platformName is string && data.platformName.size() <= 100))
+        && (!('defaultWebhookBaseUrl' in data) || (data.defaultWebhookBaseUrl is string && data.defaultWebhookBaseUrl.size() <= 512))
+        && (!('broadcastRateLimitMs' in data) || (data.broadcastRateLimitMs is int && data.broadcastRateLimitMs >= 50 && data.broadcastRateLimitMs <= 10000))
+        && (!('broadcastRequireConfirm' in data) || data.broadcastRequireConfirm is bool)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidErrorLog(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'source', 'severity', 'message', 'createdAt'])
+        && data.keys().hasOnly(['id', 'ownerUid', 'source', 'botId', 'severity', 'message', 'details', 'createdAt'])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.source in ['viber_api', 'telegram_api', 'webhook', 'broadcast', 'flow', 'database', 'system']
+        && data.severity in ['info', 'warning', 'error']
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 512
+        && (!('botId' in data) || (data.botId is string && data.botId.size() <= 128))
+        && (!('details' in data) || (data.details is string && data.details.size() <= 2048))
+        && data.createdAt is timestamp;
+    }
+
+    // Connection test document for startup check
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && isSignedIn() && (isBootstrappedAdmin() || request.auth.uid == adminId);
+      allow list: if isBootstrappedAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isValidId(adminId)
+        && isBootstrappedAdmin()
+        && isValidAdminUser(incoming())
+        && incoming().uid == adminId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(adminId)
+        && isBootstrappedAdmin()
+        && isValidAdminUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'updatedAt']);
+      allow delete: if isValidId(adminId) && isBootstrappedAdmin();
+    }
+
+    // Bots collection
+    match /bots/{botId} {
+      allow get: if isValidId(botId) && (resource == null || isWorkspaceOwner(existing()));
+      allow list: if resource.data.ownerUid == currentOwnerId() || (isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com');
+      allow create: if isValidId(botId)
+        && isValidBot(incoming())
+        && incoming().id == botId
+        && incoming().ownerUid == currentOwnerId()
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(botId)
+        && isWorkspaceOwner(existing())
+        && isValidBot(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'status', 'encryptedToken', 'tokenMasked', 'botUsername',
+          'botPlatformId', 'webhookUrl', 'webhookStatus', 'syncMode',
+          'lastSyncAt', 'lastError', 'permissions', 'updatedAt'
+        ]);
+      allow delete: if isValidId(botId) && isWorkspaceOwner(existing());
+    }
+
+    // Customers collection
+    match /customers/{customerId} {
+      allow get: if isValidId(customerId) && (resource == null || isWorkspaceOwner(existing()));
+      allow list: if resource.data.ownerUid == currentOwnerId() || (isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com');
+      allow create: if isValidId(customerId)
+        && isValidCustomer(incoming())
+        && incoming().id == customerId
+        && incoming().ownerUid == currentOwnerId()
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/bots/$(incoming().botId));
+      allow update: if isValidId(customerId)
+        && isWorkspaceOwner(existing())
+        && isValidCustomer(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().botId == existing().botId
+        && incoming().platform == existing().platform
+        && incoming().platformUserId == existing().platformUserId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['unreadCount', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'platformName', 'avatarUrl', 'username', 'isSubscribed',
+            'lastMessageText', 'lastMessageAt', 'unreadCount', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(customerId) && isWorkspaceOwner(existing());
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      allow get: if isValidId(messageId) && (resource == null || isWorkspaceOwner(existing()));
+      allow list: if resource.data.ownerUid == currentOwnerId() || (isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com');
+      allow create: if isValidId(messageId)
+        && isValidMessage(incoming())
+        && incoming().id == messageId
+        && incoming().ownerUid == currentOwnerId()
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/bots/$(incoming().botId))
+        && exists(/databases/$(database)/documents/customers/$(incoming().customerId));
+      allow update: if isValidId(messageId)
+        && isWorkspaceOwner(existing())
+        && isValidMessage(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'errorMessage', 'platformMessageId']);
+      allow delete: if isValidId(messageId) && isWorkspaceOwner(existing());
+    }
+
+    // Broadcasts collection
+    match /broadcasts/{broadcastId} {
+      allow get: if isValidId(broadcastId) && (resource == null || isWorkspaceOwner(existing()));
+      allow list: if resource.data.ownerUid == currentOwnerId() || (isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com');
+      allow create: if isValidId(broadcastId)
+        && isValidBroadcast(incoming())
+        && incoming().id == broadcastId
+        && incoming().ownerUid == currentOwnerId()
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(broadcastId)
+        && isWorkspaceOwner(existing())
+        && isValidBroadcast(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && !(existing().status in ['completed', 'cancelled'])
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'successCount', 'failedCount', 'status', 'startedAt', 'completedAt', 'updatedAt'
+        ]);
+      allow delete: if isValidId(broadcastId) && isWorkspaceOwner(existing());
+    }
+
+    // Flows collection
+    match /flows/{flowId} {
+      allow get: if isValidId(flowId) && (resource == null || isWorkspaceOwner(existing()));
+      allow list: if resource.data.ownerUid == currentOwnerId() || (isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com');
+      allow create: if isValidId(flowId)
+        && isValidFlow(incoming())
+        && incoming().id == flowId
+        && incoming().ownerUid == currentOwnerId()
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(flowId)
+        && isWorkspaceOwner(existing())
+        && isValidFlow(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['isActive', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['executionCount', 'lastExecutedAt', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'botId', 'platform', 'isActive', 'triggerKeywords',
+            'nodes', 'edges', 'executionCount', 'lastExecutedAt', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(flowId) && isWorkspaceOwner(existing());
+    }
+
+    // Settings collection
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && (
+        settingId == ('settings_' + currentOwnerId()) ||
+        isBootstrappedAdmin() ||
+        (resource != null && isWorkspaceOwner(existing()))
+      );
+      allow list: if resource.data.ownerUid == currentOwnerId() || (isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com');
+      allow create: if isValidId(settingId)
+        && isValidSettings(incoming())
+        && incoming().id == settingId
+        && incoming().ownerUid == currentOwnerId()
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId)
+        && isWorkspaceOwner(existing())
+        && isValidSettings(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'soundEnabled', 'volume', 'viberTone', 'telegramTone',
+          'browserNotificationsEnabled', 'platformName', 'defaultWebhookBaseUrl',
+          'broadcastRateLimitMs', 'broadcastRequireConfirm', 'updatedAt'
+        ]);
+      allow delete: if isValidId(settingId) && isWorkspaceOwner(existing());
+    }
+
+    // Error Logs collection
+    match /error_logs/{logId} {
+      allow get: if isValidId(logId) && (resource == null || isWorkspaceOwner(existing()));
+      allow list: if resource.data.ownerUid == currentOwnerId() || (isSignedIn() && request.auth.token.email == 'ultraspin168@gmail.com');
+      allow create: if isValidId(logId)
+        && isValidErrorLog(incoming())
+        && incoming().id == logId
+        && incoming().ownerUid == currentOwnerId()
+        && incoming().createdAt == request.time;
+      allow delete: if isValidId(logId) && isWorkspaceOwner(existing());
+    }
+  }
+}
